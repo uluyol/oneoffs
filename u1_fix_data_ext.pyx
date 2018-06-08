@@ -1,3 +1,15 @@
+# Compiled part of u1-data-to-jsonlines.py
+#
+# This file is compiled with Cython for performance,
+# but even still things are pretty slow.
+# Bottleneck is probably reading CSV or encoding JSON.
+# Second can be sped up with a lot of ugliness.
+# First is hard since the CSV has complexities like
+# commas inside quoted strings.
+#
+# Runs on my machine over the data in less than a day,
+# so good enough I guess.
+
 import ast
 
 fix_toint = [
