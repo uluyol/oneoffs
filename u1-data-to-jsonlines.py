@@ -86,6 +86,7 @@ with futures.ProcessPoolExecutor() as exec:
 			n += 1
 			if n > 50000:
 				break
+		done = n == 0
 
 		chunks = chunklines(lines, 500)
 
