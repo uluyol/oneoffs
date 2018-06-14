@@ -2,7 +2,6 @@ package u1proc
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
@@ -12,9 +11,10 @@ import (
 type FloatOrStr float64
 
 func (v *FloatOrStr) UnmarshalJSON(b []byte) error {
-	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
-		s = string(b)
+	so := string(b)
+	s, err := strconv.Unquote(so)
+	if err != nil {
+		s = so
 	}
 
 	f, err := strconv.ParseFloat(s, 64)
@@ -33,8 +33,8 @@ func (v *Time) MarshalJSON() ([]byte, error) {
 }
 
 func (v *Time) UnmarshalJSON(b []byte) error {
-	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
 		return fmt.Errorf("bad time string: %v", err)
 	}
 
