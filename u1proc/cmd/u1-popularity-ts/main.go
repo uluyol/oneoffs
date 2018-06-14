@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"io"
 	"log"
 	"os"
 	"runtime"
@@ -16,10 +17,17 @@ type ID struct {
 	User, Vol, Node int64
 }
 
+func newWriter(dst io.Writer) *writer {
+	w := &writer{w: bufio.NewWriterSize(dst, 40960)}
+	w.start()
+	return w
+}
+
 type writer struct {
-	w *bufio.Writer
-	c chan wmesg
-	e atomic.Value
+	w         *bufio.Writer
+	c         chan wmesg
+	waitClose chan struct{}
+	e         atomic.Value
 }
 
 type wmesg struct {
@@ -37,20 +45,31 @@ func (w *writer) Emit(fid int64, isPut bool, age time.Duration) bool {
 	return true
 }
 
-func (w *writer) close() { close(w.c) }
+func (w *writer) Close() {
+	close(w.c)
+	<-w.waitClose
+}
 
 func (w *writer) start() {
 	w.c = make(chan wmesg, 4*runtime.NumCPU())
+	w.waitClose = make(chan struct{})
 
 	go func() {
 		wroteErr := false
+		var err error
 		for m := range w.c {
-			var err error
 			w.emitOne(&err, m.fid, m.isPut, m.age)
 			if err != nil && !wroteErr {
 				w.e.Store(err)
 			}
 		}
+		if err == nil {
+			err = w.w.Flush()
+			if err != nil {
+				w.e.Store(err)
+			}
+		}
+		close(w.waitClose)
 	}()
 }
 
@@ -102,11 +121,8 @@ func main() {
 	fids := make(map[ID]int64)
 	var starts []time.Time
 
-	bw := bufio.NewWriterSize(os.Stdout, 40960)
-	defer bw.Flush()
-	w := writer{w: bw}
-	w.start()
-	defer w.close()
+	w := newWriter(os.Stdout)
+	defer w.Close()
 
 	for rdr.Scan() {
 		r := rdr.Record()
